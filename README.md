@@ -6,8 +6,9 @@ Instead of a paper notebook that gets lost or argued over, the shop owner record
 
 **Try it:** https://dikeledi-k.github.io/kredit-book/ (open it on your phone, then use "Add to Home screen").
 
-## Features (v0.1)
+## Features (v0.2)
 
+- **Welcome page**: new users see what the app does and must name their shop before they can add customers.
 - **Customers**: add, edit and delete customers with an optional phone number.
 - **Credit and payments**: record "gave credit" and "got paid" entries with an amount, note and date.
 - **Balances**: running balance per customer and the total owed to the shop, biggest debts first.
@@ -53,6 +54,7 @@ When you change any file, bump `CACHE` in `sw.js` (e.g. `kredit-book-v2`) so pho
 ```
 index.html            App screens and dialogs
 css/styles.css        Styles (mobile-first, light and dark mode)
+fonts/                Self-hosted handwriting font for the welcome page (OFL)
 js/store.js           Data layer: pure functions, no DOM (tested)
 js/app.js             UI: rendering, routing, events
 sw.js                 Service worker for offline use

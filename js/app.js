@@ -80,7 +80,24 @@ function relativeDay(iso) {
 
 // ---------- Routing ----------
 
+function hasShop() {
+  return Boolean(state.settings.shopName && state.settings.shopName.trim());
+}
+
 function route() {
+  // Nothing else is reachable until the shop has a name.
+  const welcome = !hasShop();
+  $('view-welcome').hidden = !welcome;
+  document.querySelector('.topbar').hidden = welcome;
+  $('app').hidden = welcome;
+  document.title = welcome ? 'Kredit Book' : `${state.settings.shopName} · Kredit Book`;
+  if (welcome) {
+    if (location.hash && location.hash !== '#/') history.replaceState(null, '', location.pathname + location.search);
+    for (const d of document.querySelectorAll('dialog[open]')) d.close();
+    window.scrollTo(0, 0);
+    return;
+  }
+
   const hash = location.hash || '#/';
   const [, view, id] = hash.split('/');
   for (const v of document.querySelectorAll('.view')) v.hidden = true;
@@ -221,6 +238,7 @@ function renderSettings() {
 // ---------- Dialogs ----------
 
 function openCustomerDialog(customer = null) {
+  if (!hasShop()) return route();
   editingCustomerId = customer ? customer.id : null;
   const f = $('customer-form');
   $('customer-dialog-title').textContent = customer ? 'Edit customer' : 'New customer';
@@ -311,9 +329,36 @@ $('entry-form').addEventListener('submit', (ev) => {
   toast(`${entryType === 'credit' ? 'Credit' : 'Payment'} of ${money(amount)} saved`);
 });
 
+$('welcome-form').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const input = $('welcome-shop');
+  const name = input.value.trim();
+  if (!name) {
+    $('welcome-error').hidden = false;
+    input.setAttribute('aria-invalid', 'true');
+    input.focus();
+    return;
+  }
+  state.settings.shopName = name;
+  save();
+  input.value = '';
+  go('#/');
+  toast(`Welcome, ${name}! Add your first customer.`);
+});
+
+$('welcome-shop').addEventListener('input', () => {
+  $('welcome-error').hidden = true;
+  $('welcome-shop').removeAttribute('aria-invalid');
+});
+
 $('settings-form').addEventListener('submit', (ev) => {
   ev.preventDefault();
   const f = ev.target;
+  if (!f.shopName.value.trim()) {
+    toast('Your shop needs a name');
+    f.shopName.focus();
+    return;
+  }
   state.settings.shopName = f.shopName.value.trim();
   state.settings.currency = f.currency.value.trim() || 'R';
   state.settings.countryCode = f.countryCode.value.replace(/\D/g, '') || '27';
@@ -332,7 +377,7 @@ $('export-btn').addEventListener('click', () => {
   toast('Backup downloaded');
 });
 
-$('import-input').addEventListener('change', async (ev) => {
+async function restoreFrom(ev) {
   const file = ev.target.files[0];
   ev.target.value = '';
   if (!file) return;
@@ -341,12 +386,14 @@ $('import-input').addEventListener('change', async (ev) => {
     if (!confirm(`Restore ${next.customers.length} customers from this backup? This replaces everything currently on this phone.`)) return;
     state = next;
     save();
-    toast('Backup restored');
     go('#/');
+    toast(hasShop() ? 'Backup restored' : 'Backup restored. Now enter your shop name.');
   } catch {
     toast('That file is not a Kredit Book backup');
   }
-});
+}
+$('import-input').addEventListener('change', restoreFrom);
+$('welcome-import').addEventListener('change', restoreFrom);
 
 // Keep multiple tabs in sync.
 window.addEventListener('storage', (ev) => {
@@ -358,12 +405,6 @@ window.addEventListener('storage', (ev) => {
 
 window.addEventListener('hashchange', route);
 route();
-
-// First run: ask for the shop name so reminders sound personal.
-if (!state.settings.shopName && state.customers.length === 0 && !location.hash) {
-  go('#/settings');
-  toast('Welcome! Start by adding your shop name.');
-}
 
 // Offline support.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {

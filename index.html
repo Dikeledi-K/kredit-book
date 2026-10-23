@@ -12,6 +12,48 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <!-- Welcome: shown until a shop name is saved -->
+  <section id="view-welcome" class="welcome" hidden>
+    <div class="welcome-hero">
+      <p class="welcome-brand">Kredit Book</p>
+      <h1 class="welcome-title">Your shop's credit book, on your phone.</h1>
+      <p class="welcome-lead">Know who owes you and how much, and send a friendly reminder in one tap. Works without data.</p>
+
+      <figure class="book" aria-hidden="true">
+        <div class="book-page">
+          <div class="book-line book-head"><span>Owed</span></div>
+          <div class="book-line"><span>Thabo – bread, milk</span><span>R45</span></div>
+          <div class="book-line"><span>Ayesha – sugar</span><span>R32</span></div>
+          <div class="book-line paid"><span>Bongani – airtime</span><span>R20</span></div>
+          <div class="book-line"><span>Mpho – paraffin</span><span>R60</span></div>
+          <div class="book-line"></div>
+        </div>
+      </figure>
+    </div>
+
+    <div class="welcome-body">
+      <ul class="welcome-points">
+        <li><strong>Write it down once.</strong> Record what each customer took on credit and what they paid back.</li>
+        <li><strong>See who owes you.</strong> Every balance is added up for you, with the biggest debts at the top.</li>
+        <li><strong>Remind without the awkward talk.</strong> Send the balance on WhatsApp or SMS with one tap.</li>
+      </ul>
+
+      <form id="welcome-form" class="welcome-form" novalidate>
+        <label for="welcome-shop">What's your shop called?</label>
+        <input id="welcome-shop" name="shopName" maxlength="60" autocomplete="organization" placeholder="e.g. Mama's Shop" required>
+        <p class="welcome-help">Customers see this name in your reminders.</p>
+        <p class="form-error" id="welcome-error" hidden>Enter your shop name to start.</p>
+        <button type="submit" class="btn btn-primary btn-block">Start my book</button>
+      </form>
+
+      <p class="welcome-restore">
+        Moving from another phone?
+        <label class="link-btn">Restore a backup<input type="file" id="welcome-import" accept="application/json,.json" hidden></label>
+      </p>
+      <p class="welcome-note">Your records stay on this phone. Nothing is sent anywhere.</p>
+    </div>
+  </section>
+
   <header class="topbar">
     <button class="icon-btn" id="back-btn" aria-label="Back" hidden>&#8592;</button>
     <h1 id="title">Kredit Book</h1>
@@ -68,7 +110,7 @@
     <section id="view-settings" class="view" hidden>
       <form id="settings-form" class="card form">
         <label>Shop name
-          <input name="shopName" placeholder="e.g. Mama's Shop" maxlength="60">
+          <input name="shopName" placeholder="e.g. Mama's Shop" maxlength="60" required>
         </label>
         <label>Currency symbol
           <input name="currency" maxlength="5" required>
@@ -88,7 +130,7 @@
           <input type="file" id="import-input" accept="application/json,.json" hidden>
         </label>
       </div>
-      <p class="version">Kredit Book v0.1</p>
+      <p class="version">Kredit Book v0.2</p>
     </section>
   </main>
 

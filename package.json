@@ -1,6 +1,6 @@
 {
   "name": "kredit-book",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A simple offline credit book for small shops: track who owes you and send WhatsApp/SMS reminders.",
   "type": "module",
   "private": true,
