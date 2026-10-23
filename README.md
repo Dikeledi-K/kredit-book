@@ -4,6 +4,8 @@ A simple digital credit book for small shops, spaza shops, market vendors and an
 
 Instead of a paper notebook that gets lost or argued over, the shop owner records who took what on credit, who paid back, and sends a friendly WhatsApp or SMS reminder with one tap.
 
+**Try it:** https://dikeledi-k.github.io/kredit-book/ (open it on your phone, then use "Add to Home screen").
+
 ## Features (v0.1)
 
 - **Customers**: add, edit and delete customers with an optional phone number.
