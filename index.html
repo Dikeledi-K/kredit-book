@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f5f4a">
+  <meta name="description" content="Track who owes your shop money and send friendly WhatsApp or SMS reminders. Works offline.">
+  <title>Kredit Book</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn" id="back-btn" aria-label="Back" hidden>&#8592;</button>
+    <h1 id="title">Kredit Book</h1>
+    <button class="icon-btn" id="settings-btn" aria-label="Settings">&#9881;</button>
+  </header>
+
+  <main id="app">
+    <!-- Home: list of customers -->
+    <section id="view-home" class="view">
+      <div class="summary card">
+        <div class="summary-label">Total owed to you</div>
+        <div class="summary-amount" id="total-owed">R0.00</div>
+        <div class="summary-sub" id="total-sub">No customers yet</div>
+      </div>
+
+      <input type="search" id="search" class="search" placeholder="Search name or phone" autocomplete="off">
+
+      <ul id="customer-list" class="list"></ul>
+      <p id="empty-home" class="empty" hidden>
+        Add your first customer to start tracking who owes you.
+      </p>
+
+      <button class="fab" id="add-customer-btn" aria-label="Add customer">+ Customer</button>
+    </section>
+
+    <!-- Customer detail -->
+    <section id="view-customer" class="view" hidden>
+      <div class="card balance-card">
+        <div class="customer-phone" id="cust-phone"></div>
+        <div class="summary-label" id="cust-balance-label">Owes you</div>
+        <div class="summary-amount" id="cust-balance">R0.00</div>
+        <div class="actions-row">
+          <button class="btn btn-credit" id="add-credit-btn">+ Gave credit</button>
+          <button class="btn btn-payment" id="add-payment-btn">Got paid</button>
+        </div>
+        <div class="actions-row">
+          <a class="btn btn-ghost" id="whatsapp-btn" target="_blank" rel="noopener">WhatsApp reminder</a>
+          <a class="btn btn-ghost" id="sms-btn">SMS reminder</a>
+        </div>
+        <p class="hint" id="no-phone-hint" hidden>Add a phone number to send reminders.</p>
+      </div>
+
+      <h2 class="section-title">History</h2>
+      <ul id="entry-list" class="list"></ul>
+      <p id="empty-entries" class="empty" hidden>No entries yet.</p>
+
+      <div class="danger-zone">
+        <button class="btn btn-ghost" id="edit-customer-btn">Edit customer</button>
+        <button class="btn btn-danger-ghost" id="delete-customer-btn">Delete customer</button>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="view-settings" class="view" hidden>
+      <form id="settings-form" class="card form">
+        <label>Shop name
+          <input name="shopName" placeholder="e.g. Mama's Shop" maxlength="60">
+        </label>
+        <label>Currency symbol
+          <input name="currency" maxlength="5" required>
+        </label>
+        <label>Country calling code
+          <input name="countryCode" inputmode="numeric" pattern="\d{1,4}" maxlength="4" required>
+          <small>Used to turn local numbers (like 082…) into WhatsApp numbers. South Africa is 27.</small>
+        </label>
+        <button class="btn btn-primary" type="submit">Save settings</button>
+      </form>
+
+      <div class="card form">
+        <h2 class="section-title">Backup</h2>
+        <p class="hint">Your book is stored only on this phone. Download a backup regularly and keep it safe, for example by sending it to yourself on WhatsApp or email.</p>
+        <button class="btn btn-ghost" id="export-btn">Download backup</button>
+        <label class="btn btn-ghost file-btn">Restore from backup
+          <input type="file" id="import-input" accept="application/json,.json" hidden>
+        </label>
+      </div>
+      <p class="version">Kredit Book v0.1</p>
+    </section>
+  </main>
+
+  <!-- Add / edit customer -->
+  <dialog id="customer-dialog">
+    <form method="dialog" id="customer-form" class="form">
+      <h2 id="customer-dialog-title">New customer</h2>
+      <label>Name
+        <input name="name" required maxlength="60" autocomplete="off">
+      </label>
+      <label>Phone (optional)
+        <input name="phone" type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="082 123 4567">
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Add entry -->
+  <dialog id="entry-dialog">
+    <form method="dialog" id="entry-form" class="form">
+      <h2 id="entry-dialog-title">Gave credit</h2>
+      <label>Amount
+        <input name="amount" inputmode="decimal" required autocomplete="off" placeholder="0.00">
+      </label>
+      <label>Note (optional)
+        <input name="note" maxlength="80" autocomplete="off" placeholder="e.g. bread, milk, airtime">
+      </label>
+      <label>Date
+        <input name="date" type="date" required>
+      </label>
+      <p class="form-error" id="entry-error" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="entry-submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
