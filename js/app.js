@@ -85,22 +85,33 @@ function hasShop() {
 }
 
 function route() {
-  // Nothing else is reachable until the shop has a name.
+  // 1. Nothing else is reachable until the shop has a name.
   const welcome = !hasShop();
+  if (welcome) {
+    locked = false;
+    hidePad();
+  } else if (locked && pad.mode !== 'unlock') {
+    // 2. With a PIN set, the book stays hidden until it is unlocked.
+    showPad('unlock');
+  }
+
+  const covered = welcome || padOpen();
   $('view-welcome').hidden = !welcome;
-  document.querySelector('.topbar').hidden = welcome;
-  $('app').hidden = welcome;
-  document.title = welcome ? 'Kredit Book' : `${state.settings.shopName} · Kredit Book`;
+  document.querySelector('.topbar').hidden = covered;
+  $('app').hidden = covered;
+  document.title = welcome || locked ? 'Kredit Book' : `${state.settings.shopName} · Kredit Book`;
   if (welcome) {
     if (location.hash && location.hash !== '#/') history.replaceState(null, '', location.pathname + location.search);
     for (const d of document.querySelectorAll('dialog[open]')) d.close();
     window.scrollTo(0, 0);
     return;
   }
+  if (covered) return;
 
   const hash = location.hash || '#/';
   const [, view, id] = hash.split('/');
   for (const v of document.querySelectorAll('.view')) v.hidden = true;
+  $('lock-btn').hidden = true;
 
   if (view === 'customer' && store.getCustomer(state, id)) {
     currentCustomerId = id;
@@ -119,10 +130,189 @@ function route() {
     $('view-home').hidden = false;
     $('back-btn').hidden = true;
     $('settings-btn').hidden = false;
+    $('lock-btn').hidden = !store.hasPin(state);
     $('title').textContent = state.settings.shopName || 'Kredit Book';
     renderHome();
   }
   window.scrollTo(0, 0);
+}
+
+// ---------- PIN pad ----------
+// One full-screen keypad handles every PIN step:
+//   unlock  - open a locked book
+//   verify  - confirm the current PIN before changing or removing it
+//   new     - choose a PIN
+//   confirm - type the new PIN again
+
+const AUTO_LOCK_MS = 2 * 60 * 1000; // lock after 2 minutes away from the app
+const FREE_TRIES = 5; // wrong PINs allowed before a wait
+
+let locked = store.hasPin(state);
+let hiddenAt = 0;
+const pad = { mode: null, next: null, digits: '', first: '', fails: 0, blockedUntil: 0, busy: false, timer: null };
+
+const PAD_TEXT = {
+  unlock: ['Enter your PIN', ''],
+  verify: ['Enter your current PIN', ''],
+  new: ['Choose a 4-digit PIN', "You'll enter it each time you open Kredit Book."],
+  confirm: ['Enter the same PIN again', 'This makes sure you typed it right.'],
+};
+
+function padOpen() {
+  return !$('view-lock').hidden;
+}
+
+function showPad(mode, { next = null } = {}) {
+  pad.mode = mode;
+  if (next) pad.next = next;
+  pad.digits = '';
+  const [title, sub] = PAD_TEXT[mode];
+  $('lock-title').textContent = title;
+  $('lock-sub').textContent = sub;
+  $('lock-shop').textContent = mode === 'unlock' ? state.settings.shopName : '';
+  $('lock-error').textContent = '';
+  $('key-cancel').classList.toggle('invisible', mode === 'unlock');
+  $('key-cancel').disabled = mode === 'unlock';
+  $('lock-forgot').hidden = mode !== 'unlock';
+  for (const d of document.querySelectorAll('dialog[open]')) d.close();
+  $('view-lock').hidden = false;
+  renderDots();
+  updateBlocked();
+}
+
+function openPad(mode, opts) {
+  showPad(mode, opts);
+  route();
+}
+
+function hidePad() {
+  $('view-lock').hidden = true;
+  pad.mode = null;
+  pad.next = null;
+  pad.digits = '';
+  pad.first = '';
+  clearInterval(pad.timer);
+}
+
+function closePad() {
+  hidePad();
+  route();
+}
+
+function lock() {
+  if (!store.hasPin(state) || !hasShop()) return;
+  locked = true;
+  route();
+}
+
+function renderDots() {
+  [...$('pin-dots').children].forEach((dot, i) => dot.classList.toggle('on', i < pad.digits.length));
+  $('pin-count').textContent = pad.digits.length ? `${pad.digits.length} of ${store.PIN_LENGTH} digits entered` : '';
+}
+
+function failPad(message) {
+  pad.digits = '';
+  renderDots();
+  $('lock-error').textContent = message;
+  const dots = $('pin-dots');
+  dots.classList.remove('shake');
+  void dots.offsetWidth; // restart the animation
+  dots.classList.add('shake');
+  if (navigator.vibrate) navigator.vibrate(120);
+}
+
+function updateBlocked() {
+  clearInterval(pad.timer);
+  const tick = () => {
+    const left = Math.ceil((pad.blockedUntil - Date.now()) / 1000);
+    const blocked = left > 0;
+    $('keypad').classList.toggle('disabled', blocked);
+    if (blocked) {
+      $('lock-error').textContent = `Too many wrong tries. Try again in ${left} second${left === 1 ? '' : 's'}.`;
+    } else {
+      clearInterval(pad.timer);
+      if ($('lock-error').textContent.startsWith('Too many')) $('lock-error').textContent = '';
+    }
+  };
+  tick();
+  if (pad.blockedUntil > Date.now()) pad.timer = setInterval(tick, 1000);
+}
+
+async function pressDigit(digit) {
+  if (pad.busy || Date.now() < pad.blockedUntil || pad.digits.length >= store.PIN_LENGTH) return;
+  pad.digits += digit;
+  if (!$('lock-error').textContent.startsWith('Too many')) $('lock-error').textContent = '';
+  renderDots();
+  if (pad.digits.length < store.PIN_LENGTH) return;
+  pad.busy = true;
+  try {
+    await completePin(pad.digits);
+  } finally {
+    pad.busy = false;
+  }
+}
+
+function backspace() {
+  if (pad.busy) return;
+  pad.digits = pad.digits.slice(0, -1);
+  renderDots();
+}
+
+function cancelPad() {
+  if (pad.mode && pad.mode !== 'unlock') closePad();
+}
+
+async function completePin(pin) {
+  const { mode } = pad;
+
+  if (mode === 'unlock' || mode === 'verify') {
+    if (await store.checkPin(state, pin)) {
+      pad.fails = 0;
+      if (mode === 'unlock') {
+        locked = false;
+        closePad();
+      } else if (pad.next === 'remove') {
+        store.clearPin(state);
+        save();
+        closePad();
+        toast('PIN removed');
+      } else {
+        openPad('new');
+      }
+      return;
+    }
+    pad.fails += 1;
+    if (pad.fails >= FREE_TRIES) {
+      // 30 seconds, then 1 minute, 2 minutes, … for each further wrong try.
+      pad.blockedUntil = Date.now() + 30000 * 2 ** (pad.fails - FREE_TRIES);
+      failPad('');
+      updateBlocked();
+    } else {
+      const left = FREE_TRIES - pad.fails;
+      failPad(pad.fails < 3 ? 'Wrong PIN. Try again.' : `Wrong PIN. ${left} more ${left === 1 ? 'try' : 'tries'} before a short wait.`);
+    }
+    return;
+  }
+
+  if (mode === 'new') {
+    const first = pin;
+    showPad('confirm');
+    pad.first = first;
+    return;
+  }
+
+  if (mode === 'confirm') {
+    if (pin !== pad.first) {
+      showPad('new');
+      failPad("The PINs didn't match. Choose your PIN again.");
+      return;
+    }
+    const changing = store.hasPin(state);
+    await store.setPin(state, pin);
+    save();
+    closePad();
+    toast(changing ? 'PIN changed' : 'PIN set. Kredit Book will ask for it when it opens.');
+  }
 }
 
 function go(hash) {
@@ -233,12 +423,22 @@ function renderSettings() {
   f.shopName.value = state.settings.shopName;
   f.currency.value = state.settings.currency;
   f.countryCode.value = state.settings.countryCode;
+
+  const on = store.hasPin(state);
+  const supported = store.pinSupported();
+  $('pin-set-btn').hidden = on || !supported;
+  $('pin-on-actions').hidden = !on;
+  $('pin-status').textContent = !supported
+    ? 'App lock only works when Kredit Book is opened from its https:// link.'
+    : on
+      ? 'On. Kredit Book asks for your PIN when it opens, and again after 2 minutes away from the app.'
+      : "Ask for a 4-digit PIN when the app opens, so people at the counter can't see who owes what.";
 }
 
 // ---------- Dialogs ----------
 
 function openCustomerDialog(customer = null) {
-  if (!hasShop()) return route();
+  if (!hasShop() || locked) return route();
   editingCustomerId = customer ? customer.id : null;
   const f = $('customer-form');
   $('customer-dialog-title').textContent = customer ? 'Edit customer' : 'New customer';
@@ -377,23 +577,86 @@ $('export-btn').addEventListener('click', () => {
   toast('Backup downloaded');
 });
 
-async function restoreFrom(ev) {
+// keepPin: restoring from Settings keeps this phone's PIN. Restoring from
+// "Forgot PIN?" removes it, so the owner can get back into their book.
+async function restoreFrom(ev, { keepPin = true } = {}) {
   const file = ev.target.files[0];
   ev.target.value = '';
   if (!file) return;
   try {
     const next = store.importBackup(await file.text());
     if (!confirm(`Restore ${next.customers.length} customers from this backup? This replaces everything currently on this phone.`)) return;
+    if (keepPin) store.copyPin(state, next);
     state = next;
     save();
+    if (!keepPin) {
+      locked = false;
+      pad.fails = 0;
+      pad.blockedUntil = 0;
+      $('forgot-dialog').close();
+      hidePad();
+    }
     go('#/');
-    toast(hasShop() ? 'Backup restored' : 'Backup restored. Now enter your shop name.');
+    if (!hasShop()) toast('Backup restored. Now enter your shop name.');
+    else toast(keepPin ? 'Backup restored' : 'Backup restored. The PIN was removed; you can set a new one in Settings.');
   } catch {
     toast('That file is not a Kredit Book backup');
   }
 }
-$('import-input').addEventListener('change', restoreFrom);
-$('welcome-import').addEventListener('change', restoreFrom);
+$('import-input').addEventListener('change', (ev) => restoreFrom(ev));
+$('welcome-import').addEventListener('change', (ev) => restoreFrom(ev));
+$('forgot-import').addEventListener('change', (ev) => restoreFrom(ev, { keepPin: false }));
+
+// ---------- PIN events ----------
+
+$('keypad').addEventListener('click', (ev) => {
+  const key = ev.target.closest('.key');
+  if (!key) return;
+  if (key.dataset.digit) pressDigit(key.dataset.digit);
+  else if (key.id === 'key-back') backspace();
+  else if (key.id === 'key-cancel') cancelPad();
+});
+
+document.addEventListener('keydown', (ev) => {
+  if (!padOpen() || document.querySelector('dialog[open]')) return;
+  if (/^\d$/.test(ev.key)) {
+    ev.preventDefault();
+    pressDigit(ev.key);
+  } else if (ev.key === 'Backspace') {
+    ev.preventDefault();
+    backspace();
+  } else if (ev.key === 'Escape') {
+    cancelPad();
+  }
+});
+
+$('pin-set-btn').addEventListener('click', () => openPad('new'));
+$('pin-change-btn').addEventListener('click', () => openPad('verify', { next: 'change' }));
+$('pin-remove-btn').addEventListener('click', () => openPad('verify', { next: 'remove' }));
+$('lock-btn').addEventListener('click', lock);
+$('lock-forgot').addEventListener('click', () => $('forgot-dialog').showModal());
+
+$('forgot-erase-btn').addEventListener('click', () => {
+  if (!confirm('Erase every customer and payment on this phone? This cannot be undone.')) return;
+  state = store.emptyState();
+  save();
+  locked = false;
+  pad.fails = 0;
+  pad.blockedUntil = 0;
+  $('forgot-dialog').close();
+  hidePad();
+  go('#/');
+});
+
+// Lock again when the owner comes back after being away for a while.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    hiddenAt = Date.now();
+  } else if (hiddenAt && Date.now() - hiddenAt >= AUTO_LOCK_MS) {
+    hiddenAt = 0;
+    lock();
+  }
+});
 
 // Keep multiple tabs in sync.
 window.addEventListener('storage', (ev) => {

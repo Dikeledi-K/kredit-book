@@ -178,6 +178,58 @@ export function smsLink(state, customerId) {
   return `sms:${number}?body=${encodeURIComponent(reminderMessage(state, customerId))}`;
 }
 
+// ---------- PIN lock ----------
+// The PIN is never stored, only a salted SHA-256 hash of it. This keeps casual
+// users (a child, a customer at the counter) out; it is not strong encryption.
+
+export const PIN_LENGTH = 4;
+
+export function isValidPin(pin) {
+  return typeof pin === 'string' && pin.length === PIN_LENGTH && /^\d+$/.test(pin);
+}
+
+export function pinSupported() {
+  return Boolean(globalThis.crypto && globalThis.crypto.subtle);
+}
+
+export async function hashPin(pin, salt) {
+  const data = new TextEncoder().encode(`${salt}:${pin}`);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export function hasPin(state) {
+  return Boolean(state.settings.pinHash && state.settings.pinSalt);
+}
+
+export async function setPin(state, pin) {
+  if (!isValidPin(pin)) throw new Error(`PIN must be ${PIN_LENGTH} digits`);
+  const salt = uid();
+  state.settings.pinSalt = salt;
+  state.settings.pinHash = await hashPin(pin, salt);
+}
+
+export async function checkPin(state, pin) {
+  if (!hasPin(state)) return true;
+  if (!isValidPin(pin)) return false;
+  return (await hashPin(pin, state.settings.pinSalt)) === state.settings.pinHash;
+}
+
+export function clearPin(state) {
+  delete state.settings.pinHash;
+  delete state.settings.pinSalt;
+}
+
+/** Copy the PIN from one state to another (or remove it if `from` has none). */
+export function copyPin(from, to) {
+  clearPin(to);
+  if (hasPin(from)) {
+    to.settings.pinHash = from.settings.pinHash;
+    to.settings.pinSalt = from.settings.pinSalt;
+  }
+  return to;
+}
+
 // ---------- Persistence & backup ----------
 
 /** Validate and normalise data loaded from storage or a backup file. Throws on bad data. */
@@ -217,10 +269,15 @@ export function saveState(state, storage = globalThis.localStorage) {
   storage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+// Backups never carry the PIN, so a restored book is never locked with a PIN
+// the owner of the new phone doesn't know.
 export function exportBackup(state) {
-  return JSON.stringify({ app: 'kredit-book', exportedAt: new Date().toISOString(), ...state }, null, 2);
+  const { pinHash, pinSalt, ...settings } = state.settings;
+  return JSON.stringify({ app: 'kredit-book', exportedAt: new Date().toISOString(), ...state, settings }, null, 2);
 }
 
 export function importBackup(text) {
-  return normalise(JSON.parse(text));
+  const next = normalise(JSON.parse(text));
+  clearPin(next);
+  return next;
 }

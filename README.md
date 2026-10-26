@@ -6,7 +6,7 @@ Instead of a paper notebook that gets lost or argued over, the shop owner record
 
 **Try it:** https://dikeledi-k.github.io/kredit-book/ (open it on your phone, then use "Add to Home screen").
 
-## Features (v0.2)
+## Features (v0.3)
 
 - **Welcome page**: new users see what the app does and must name their shop before they can add customers.
 - **Customers**: add, edit and delete customers with an optional phone number.
@@ -16,6 +16,7 @@ Instead of a paper notebook that gets lost or argued over, the shop owner record
 - **Works offline**: everything is stored on the phone, and the app opens with no data connection.
 - **Installable**: add it to the home screen like a normal app.
 - **Backup and restore**: download a backup file and restore it on another phone.
+- **PIN lock (optional)**: a 4-digit PIN when the app opens and after 2 minutes away, with a "Lock now" button. No account or data needed.
 - **Settings**: shop name, currency symbol and country calling code (defaults to `R` and `27` for South Africa).
 
 ## Run it locally
@@ -66,6 +67,12 @@ tests/                Node tests for store.js
 ### How data is stored
 
 Everything lives in the browser's `localStorage` under the key `kredit-book:v1`. Amounts are stored as whole cents to avoid rounding errors. A positive balance means the customer owes the shop; a negative balance means they paid in advance.
+
+### About the PIN lock
+
+The PIN is never saved. Only a salted SHA-256 hash of it is kept on the phone. After 5 wrong tries the keypad waits 30 seconds, and the wait doubles with each further wrong try. Backups never include the PIN.
+
+It keeps casual people out, like a child, a helper or a customer at the counter. It is not encryption: someone with technical skills and access to the unlocked phone's browser data could still read the book. A forgotten PIN can't be recovered. The owner can restore a backup (which removes the PIN) or erase the book and start again.
 
 **Important:** data stays on the phone only. If the owner clears browser data or loses the phone, the book is gone unless they downloaded a backup.
 

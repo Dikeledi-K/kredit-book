@@ -1,6 +1,6 @@
 // Service worker: caches the app shell so Kredit Book opens with no data connection.
 // Bump CACHE when you change any file below so phones pick up the new version.
-const CACHE = 'kredit-book-v2';
+const CACHE = 'kredit-book-v3';
 const ASSETS = [
   './',
   './index.html',

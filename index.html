@@ -54,9 +54,41 @@
     </div>
   </section>
 
+  <!-- PIN pad: unlock, or set / change / remove the PIN -->
+  <section id="view-lock" class="lock" hidden aria-labelledby="lock-title">
+    <div class="lock-inner">
+      <p class="lock-shop" id="lock-shop"></p>
+      <h1 class="lock-title" id="lock-title">Enter your PIN</h1>
+      <p class="lock-sub" id="lock-sub"></p>
+      <div class="pin-dots" id="pin-dots" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <p class="sr-only" id="pin-count" aria-live="polite"></p>
+      <p class="lock-error" id="lock-error" role="alert"></p>
+      <div class="keypad" id="keypad">
+        <button type="button" class="key" data-digit="1">1</button>
+        <button type="button" class="key" data-digit="2">2</button>
+        <button type="button" class="key" data-digit="3">3</button>
+        <button type="button" class="key" data-digit="4">4</button>
+        <button type="button" class="key" data-digit="5">5</button>
+        <button type="button" class="key" data-digit="6">6</button>
+        <button type="button" class="key" data-digit="7">7</button>
+        <button type="button" class="key" data-digit="8">8</button>
+        <button type="button" class="key" data-digit="9">9</button>
+        <button type="button" class="key key-text" id="key-cancel">Cancel</button>
+        <button type="button" class="key" data-digit="0">0</button>
+        <button type="button" class="key key-text" id="key-back" aria-label="Delete last digit">
+          <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-6-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <button type="button" class="lock-footer" id="lock-forgot">Forgot PIN?</button>
+    </div>
+  </section>
+
   <header class="topbar">
     <button class="icon-btn" id="back-btn" aria-label="Back" hidden>&#8592;</button>
     <h1 id="title">Kredit Book</h1>
+    <button class="icon-btn" id="lock-btn" aria-label="Lock now" hidden>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="1.9"/></svg>
+    </button>
     <button class="icon-btn" id="settings-btn" aria-label="Settings">&#9881;</button>
   </header>
 
@@ -122,6 +154,16 @@
         <button class="btn btn-primary" type="submit">Save settings</button>
       </form>
 
+      <div class="card form" id="pin-card">
+        <h2 class="section-title">App lock</h2>
+        <p class="hint" id="pin-status">Ask for a 4-digit PIN when the app opens, so people at the counter can't see who owes what.</p>
+        <button type="button" class="btn btn-primary" id="pin-set-btn">Set a PIN</button>
+        <div class="actions-row" id="pin-on-actions" hidden>
+          <button type="button" class="btn btn-ghost" id="pin-change-btn">Change PIN</button>
+          <button type="button" class="btn btn-danger-ghost" id="pin-remove-btn">Remove PIN</button>
+        </div>
+      </div>
+
       <div class="card form">
         <h2 class="section-title">Backup</h2>
         <p class="hint">Your book is stored only on this phone. Download a backup regularly and keep it safe, for example by sending it to yourself on WhatsApp or email.</p>
@@ -130,7 +172,7 @@
           <input type="file" id="import-input" accept="application/json,.json" hidden>
         </label>
       </div>
-      <p class="version">Kredit Book v0.2</p>
+      <p class="version">Kredit Book v0.3</p>
     </section>
   </main>
 
@@ -170,6 +212,19 @@
         <button type="submit" class="btn btn-primary" id="entry-submit">Save</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Forgot PIN -->
+  <dialog id="forgot-dialog">
+    <div class="form">
+      <h2>Forgot your PIN?</h2>
+      <p class="hint">The PIN can't be recovered. To use Kredit Book on this phone again, restore a backup file or start a new, empty book.</p>
+      <label class="btn btn-primary file-btn">Restore a backup
+        <input type="file" id="forgot-import" accept="application/json,.json" hidden>
+      </label>
+      <button type="button" class="btn btn-danger-ghost" id="forgot-erase-btn">Erase this book and start again</button>
+      <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+    </div>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

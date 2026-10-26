@@ -98,3 +98,46 @@ test('save/load round trip and backup import', () => {
   assert.throws(() => s.importBackup('{"hello":1}'));
   assert.deepEqual(s.loadState(memoryStorage()), s.emptyState());
 });
+
+test('PIN: set, check, clear', async () => {
+  const st = s.emptyState();
+  assert.equal(s.hasPin(st), false);
+  assert.equal(await s.checkPin(st, '0000'), true); // no PIN set: always open
+  await assert.rejects(() => s.setPin(st, '12a4'));
+  await assert.rejects(() => s.setPin(st, '123'));
+  await s.setPin(st, '2580');
+  assert.equal(s.hasPin(st), true);
+  assert.ok(!JSON.stringify(st).includes('2580'), 'PIN must not be stored in plain text');
+  assert.equal(await s.checkPin(st, '2580'), true);
+  assert.equal(await s.checkPin(st, '2581'), false);
+  assert.equal(await s.checkPin(st, ''), false);
+  s.clearPin(st);
+  assert.equal(s.hasPin(st), false);
+});
+
+test('PIN: same PIN gets a different hash each time it is set', async () => {
+  const a = s.emptyState();
+  const b = s.emptyState();
+  await s.setPin(a, '1111');
+  await s.setPin(b, '1111');
+  assert.notEqual(a.settings.pinHash, b.settings.pinHash);
+});
+
+test('PIN: survives save/load but never goes into a backup', async () => {
+  const st = s.emptyState();
+  st.settings.shopName = 'Shop';
+  await s.setPin(st, '2580');
+  const storage = memoryStorage();
+  s.saveState(st, storage);
+  assert.equal(await s.checkPin(s.loadState(storage), '2580'), true);
+
+  const backup = s.exportBackup(st);
+  assert.ok(!backup.includes('pinHash') && !backup.includes('pinSalt'));
+  // Even a hand-edited backup that contains a PIN is restored unlocked.
+  const sneaky = JSON.stringify({ ...JSON.parse(backup), settings: { ...st.settings } });
+  assert.equal(s.hasPin(s.importBackup(sneaky)), false);
+
+  const restored = s.copyPin(st, s.importBackup(backup));
+  assert.equal(await s.checkPin(restored, '2580'), true);
+  assert.equal(s.hasPin(s.copyPin(s.emptyState(), restored)), false);
+});
